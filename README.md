@@ -18,8 +18,8 @@ Start the server
 ```sh
 npm run start
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Runs the app in the development mode
+Open [http://localhost:3000] to view it in the browser.
 
 
 
@@ -27,12 +27,12 @@ Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 # Running the Server
 ### Prerequisites
 
-You need to have go installed on your device to be able to run this server.
+You need to have go installed on your device to be able to run this server
 
-The server is built with Go, Gin and an SqlLite database.
+The server is built with Go, Gin and an SqlLite database
 
 ```sh
 run go get to install all the required dependencies
 
 ```sh
-run go run main.go to get the server started after installing the required dependencies.
+run go run main.go to get the server started after installing the required dependencies
