@@ -8,7 +8,7 @@ import (
 	"saml_sso/internal/utils"
 )
 
-// GetTenantByID retrieves a tenant by ID
+// GetTenantByID retrieves a tenant/organization by ID
 func GetTenantByID(c *gin.Context, db *gorm.DB) {
 	id := c.Param("id")
 
@@ -16,9 +16,9 @@ func GetTenantByID(c *gin.Context, db *gorm.DB) {
 	result := db.First(&tenant, "id = ?", id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "Tenant not found")
+			utils.NotFound(c, "Organization not found")
 		} else {
-			utils.InternalServerError(c, "Error retrieving tenant")
+			utils.InternalServerError(c, "Error retrieving organization")
 		}
 		return
 	}
