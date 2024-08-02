@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -12,20 +13,20 @@ import (
 	routes "saml_sso/internal/routes"
 )
 
-const PORT = ":3002"
-
 func main() {
 
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	db, datbaseErr := database.Connect()
+	db, databaseErr := database.Connect()
 
-	if datbaseErr != nil {
+	if databaseErr != nil {
 		// Handle error
 		log.Fatal("Something went wrong connecting to database")
 	}
+
+	PORT := os.Getenv("PORT")
 
 	r := gin.Default()
 
