@@ -61,7 +61,7 @@ func Authenticate(c *gin.Context, db *gorm.DB) {
 	resultTenant := db.First(&tenant, "stytch_organization_id = ?", stytch_organization_id)
 
 	if resultTenant.Error != nil {
-		utils.BadRequest(c, "Tenant not found")
+		utils.BadRequest(c, "Organization not found")
 		return
 	}
 
@@ -116,7 +116,7 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 	fmt.Println(tenantExist)
 
 	if tenantExist.RowsAffected > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Tenant already exists"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Organization already exists"})
 		return
 	}
 
@@ -209,6 +209,7 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 			OrganizationID: stytchOrganization.Organization.OrganizationID,
 		}
 		client.Organizations.Delete(context.Background(), deleteParams)
+		c.JSON(http.StatusBadRequest, gin.H{"message": createConnError.Error()})
 	}
 
 	tenantUpdates := map[string]interface{}{
@@ -223,20 +224,28 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 	}
 
 	if err := db.Model(&tenant).Updates(tenantUpdates).Error; err != nil {
-		log.Fatalf("Failed to update tenant: %v", err)
+		db.Delete(&tenant)
+		db.Delete(&member)
+		deleteParams := &organizations.DeleteParams{
+			OrganizationID: stytchOrganization.Organization.OrganizationID,
+		}
+		client.Organizations.Delete(context.Background(), deleteParams)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update Organization details"})
 	}
 
 	if err := db.Model(&member).Updates(memberUpdates).Error; err != nil {
-		log.Fatalf("Failed to update tenant: %v", err)
-	}
-
-	if err := db.First(&tenant, tenant.ID).Error; err != nil {
-		log.Fatalf("Failed to fetch updated tenant: %v", err)
+		db.Delete(&tenant)
+		db.Delete(&member)
+		deleteParams := &organizations.DeleteParams{
+			OrganizationID: stytchOrganization.Organization.OrganizationID,
+		}
+		client.Organizations.Delete(context.Background(), deleteParams)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update member details"})
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"status": "success",
-		"data":   gin.H{"tenant": tenant, "member": member},
+		"data":   gin.H{"message": "Sign up successful"}
 	})
 
 }
@@ -256,9 +265,9 @@ func UpdateSamlConnection(c *gin.Context, db *gorm.DB) {
 	result := db.First(&tenant, "id = ?", id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "Tenant not found")
+			utils.NotFound(c, "Organization not found")
 		} else {
-			utils.InternalServerError(c, "Error retrieving tenant")
+			utils.InternalServerError(c, "Error retrieving Organization")
 		}
 		return
 	}
@@ -296,7 +305,7 @@ func UpdateSamlConnection(c *gin.Context, db *gorm.DB) {
 	}
 
 	if err := db.Model(&tenant).Updates(tenantUpdates).Error; err != nil {
-		log.Fatalf("Failed to update tenant: %v", err)
+		utils.InternalServerError(c, "Failed to update Organization details")
 	}
 
 	utils.OK(c, "SAML connection updated successfully")
