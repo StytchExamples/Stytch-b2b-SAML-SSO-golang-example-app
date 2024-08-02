@@ -7,9 +7,9 @@ import (
 	"saml_sso/internal/services"
 )
 
-// UserRoutes sets up the user-related routes
+// MemberRoutes sets up the member-related routes
 func MemberRoutes(r *gin.RouterGroup, db *gorm.DB) {
 	r.GET("/profile/:stytch_member_id", func(c *gin.Context) {
-		services.GetUserProfile(c, db)
+		services.GetMemberProfile(c, db)
 	})
 }

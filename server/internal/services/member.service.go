@@ -8,8 +8,8 @@ import (
 	"saml_sso/internal/utils"
 )
 
-// GetUserProfile retrieves a user's profile
-func GetUserProfile(c *gin.Context, db *gorm.DB) {
+// GetMemberProfile retrieves a member's profile using their Stytch member ID
+func GetMemberProfile(c *gin.Context, db *gorm.DB) {
 	stytch_member_id := c.Param("stytch_member_id")
 
 	var member models.Member
@@ -27,7 +27,7 @@ func GetUserProfile(c *gin.Context, db *gorm.DB) {
 	utils.OK(c, gin.H{"member": member})
 }
 
-// GetUserProfile retrieves a user's profile
+// GetMemberProfile retrieves a member's profile using their email
 func GetMemberWithEmail(c *gin.Context, db *gorm.DB, email *string) {
 
 	var member models.Member

@@ -37,7 +37,7 @@ type SignInInputInput struct {
 	SignInMethod string `json:"sign_in_method"`
 }
 
-// Authenticate handles user authentication
+// Authenticate handles member authentication
 func Authenticate(c *gin.Context, db *gorm.DB) {
 	PROJECT_ID := os.Getenv("STYTCH_PROJECT_ID")
 	SECRET_KEY := os.Getenv("STYTCH_SECRET_KEY")
@@ -87,7 +87,7 @@ func Authenticate(c *gin.Context, db *gorm.DB) {
 		db.Create(member)
 	}
 
-	utils.Created(c, gin.H{"message": "User authenticated successfully"})
+	utils.Created(c, gin.H{"message": "Member authenticated successfully"})
 }
 
 func SignUp(c *gin.Context, db *gorm.DB) {
