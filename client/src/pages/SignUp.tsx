@@ -11,7 +11,7 @@ import { axiosInstance, excludedProviders } from "../utils";
 const schema = z.object({
   company_name: z.string().min(3, "Company name is required"),
   first_name: z.string().min(2, "First name is required"),
-  last_name: z.string().min(2, "last name is required"),
+  last_name: z.string().min(2, "Last name is required"),
   email: z
     .string()
     .email("Email is required")
@@ -112,7 +112,7 @@ export const SignupPage: React.FC = () => {
               <input
                 id="name"
                 type="text"
-                placeholder="last name"
+                placeholder="Last name"
                 {...register("last_name")}
                 className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none  focus:border-[#19303d] sm:text-sm  
                 ${errors.name ? "border-red-500" : ""}`}
