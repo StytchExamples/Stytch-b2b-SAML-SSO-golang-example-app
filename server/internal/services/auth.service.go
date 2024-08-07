@@ -3,13 +3,13 @@ package services
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stytchauth/stytch-go/v12/stytch/b2b/b2bstytchapi"
+	"github.com/stytchauth/stytch-go/v12/stytch/b2b/magiclinks/email"
 	"github.com/stytchauth/stytch-go/v12/stytch/b2b/organizations"
 	"github.com/stytchauth/stytch-go/v12/stytch/b2b/organizations/members"
 	"github.com/stytchauth/stytch-go/v12/stytch/b2b/sso/saml"
@@ -132,7 +132,7 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 
 	// Create a new tenant object
 	tenant := &models.Tenant{
-		CompanyName: createTenantInput.CompanyName,
+		CompanyName: strings.ReplaceAll(createTenantInput.CompanyName, " ", "_"),
 		Domain:      parts[1],
 	}
 
@@ -145,7 +145,7 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	memberExist := db.First(&models.Member{Email: createTenantInput.Email})
+	memberExist := db.Where("email = ?", createTenantInput.Email).First(&tenant)
 
 	if memberExist.RowsAffected > 0 {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Member already exists"})
@@ -183,18 +183,18 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 	}
 
 	if client.Organizations == nil {
-		log.Panic("client.Organizations is nil")
-		db.Delete(&tenant)
-		db.Delete(&member)
+		db.Unscoped().Where("email = ?", member.Email).Delete(&models.Member{})
+		db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Something went wrong"})
-
+		return
 	}
 
 	stytchOrganization, createOrgError := client.Organizations.Create(context.Background(), createOrgParams)
 	if createOrgError != nil {
-		db.Delete(&tenant)
-		db.Delete(&member)
+		db.Unscoped().Where("email = ?", member.Email).Delete(&models.Member{})
+		db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
 		c.JSON(http.StatusBadRequest, gin.H{"message": createOrgError.Error()})
+		return
 	}
 
 	createMemberParams := &members.CreateParams{
@@ -204,13 +204,14 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 
 	createMemberResponse, createMemberError := client.Organizations.Members.Create(context.Background(), createMemberParams)
 	if createMemberError != nil {
-		db.Delete(&tenant)
-		db.Delete(&member)
+		db.Unscoped().Where("email = ?", member.Email).Delete(&models.Member{})
+		db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
 		deleteParams := &organizations.DeleteParams{
 			OrganizationID: stytchOrganization.Organization.OrganizationID,
 		}
 		client.Organizations.Delete(context.Background(), deleteParams)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": createOrgError.Error()})
+		return
 	}
 
 	client.Organizations.Members.Create(context.Background(), createMemberParams)
@@ -224,14 +225,15 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 
 	if createConnError != nil {
 
-		db.Delete(&tenant)
-		db.Delete(&member)
+		db.Unscoped().Where("email = ?", member.Email).Delete(&models.Member{})
+		db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
 		deleteParams := &organizations.DeleteParams{
 			OrganizationID: stytchOrganization.Organization.OrganizationID,
 		}
 		client.Organizations.Delete(context.Background(), deleteParams)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": createConnError.Error()})
 
+		return
 	}
 
 	tenantUpdates := map[string]interface{}{
@@ -246,13 +248,23 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 	}
 
 	if err := db.Model(&tenant).Updates(tenantUpdates).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong with updating organization"})
-
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong updating the organization"})
+		return
 	}
 
 	if err := db.Model(&member).Updates(memberUpdates).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong with updating member details"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong updating member details"})
+		return
+
 	}
+
+	sendMagicLinkparams := &email.LoginOrSignupParams{
+		EmailAddress:     member.Email,
+		OrganizationID:   stytchOrganization.Organization.OrganizationID,
+		LoginRedirectURL: "http://localhost:3000/authenticate",
+	}
+
+	client.MagicLinks.Email.LoginOrSignup(c, sendMagicLinkparams)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"status": "success",
@@ -316,7 +328,7 @@ func UpdateSamlConnection(c *gin.Context, db *gorm.DB) {
 	}
 
 	if err := db.Model(&tenant).Updates(tenantUpdates).Error; err != nil {
-		utils.InternalServerError(c, "Something went wrong with updating organization")
+		utils.InternalServerError(c, "Something went wrong updating organization")
 	}
 
 	utils.OK(c, "SAML connection updated successfully")
@@ -362,7 +374,7 @@ func SignIn(c *gin.Context, db *gorm.DB) {
 		}
 
 		if memberExistError != nil && tenant.IdpIssuerUrl != "" {
-			utils.BadRequest(c, "This organization has SAML provisioned, please sign in with SAML SSO")
+			utils.BadRequest(c, "This organization has SAML provisioned, please sign in with saml")
 		}
 
 		if memberExistError != nil && tenant.IdpIssuerUrl == "" {
