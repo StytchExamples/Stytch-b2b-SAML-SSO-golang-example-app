@@ -49,7 +49,8 @@ export const SignupPage: React.FC = () => {
     defaultValues: {
       company_name: "",
       email: "",
-      name: "",
+      first_name: "",
+      last_name: "",
     },
   });
 

@@ -3,7 +3,8 @@ export interface MemberInterface {
   CreatedAt: string;
   UpdatedAt: string;
   DeletedAt: string | null;
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
   tenant_id: number;
   stytch_member_id: string;

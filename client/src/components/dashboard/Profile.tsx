@@ -4,7 +4,7 @@ import { RootState } from "../../store/reducers";
 
 export const Profile = () => {
   const member = useSelector((state: RootState) => state.memberReducer.member);
-
+  console.log(member)
   return (
     <div className="flex flex-col w-full">
       <h1 className="text-3xl font-bold mb-6">Profile</h1>
@@ -18,7 +18,7 @@ export const Profile = () => {
           />
         </div>
         <p className="flex gap-8 ">
-          <strong>Name</strong> {member?.name}
+          <strong>Name</strong> {member?.last_name} {member?.first_name}
         </p>
         <p className="flex gap-8">
           <strong>Email</strong> {member?.email}
