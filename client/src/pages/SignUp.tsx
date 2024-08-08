@@ -10,8 +10,8 @@ import { axiosInstance, excludedProviders, useMagicLinkSignIn } from "../utils";
 
 const schema = z.object({
   company_name: z.string().min(3, "Company name is required"),
-  first_name: z.string().min(5, "First name is required"),
-  last_name: z.string().min(5, "Last name is required"),
+  first_name: z.string().min(2, "First name is required"),
+  last_name: z.string().min(2, "Last name is required"),
   email: z
     .string()
     .email("Email is required")
