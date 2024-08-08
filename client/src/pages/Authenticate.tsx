@@ -39,7 +39,7 @@ export const Authenticate = () => {
           if (tokenType === "multi_tenant_magic_links") {
             stytch.magicLinks.authenticate({
               magic_links_token: token,
-              session_duration_minutes: 240,
+              session_duration_minutes: 60,
             });
           }
 
