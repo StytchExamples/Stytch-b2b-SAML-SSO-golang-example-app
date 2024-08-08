@@ -5,7 +5,7 @@ import { z } from "zod";
 import Spinner from "../components/common/Spinner";
 import { useStytchB2BClient, useStytchMemberSession } from "@stytch/react/b2b";
 import { useNavigate } from "react-router-dom";
-import { axiosInstance } from "../utils";
+import { axiosInstance, useMagicLinkSignIn } from "../utils";
 import { toast } from "react-toastify";
 
 export const SignInSchema = z.object({
@@ -23,7 +23,6 @@ enum SignInTypeEnum {
 
 export const SignInPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [email, setEmail] = useState("");
   const [organizationId, setOrganizationId] = useState("");
   const { session } = useStytchMemberSession();
@@ -31,6 +30,8 @@ export const SignInPage: React.FC = () => {
     SignInTypeEnum.MagicLink
   );
   const stytch = useStytchB2BClient();
+  const { sendingLink, handleMagicLinkSignIn, magicLinkSent } =
+    useMagicLinkSignIn();
 
   const navigate = useNavigate();
 
@@ -51,31 +52,6 @@ export const SignInPage: React.FC = () => {
   } = useForm<FormValues>({
     resolver: zodResolver(SignInSchema),
   });
-
-  const handleMagicLinkSignIn = async (
-    email: string,
-    organization_id: string
-  ) => {
-    setEmail(email);
-    setOrganizationId(organization_id);
-
-    try {
-      await stytch.magicLinks.email.loginOrSignup({
-        email_address: email,
-        organization_id: organization_id,
-        login_redirect_url: "http://localhost:3000/authenticate",
-      });
-      setLoading(false);
-      setMagicLinkSent(true);
-      //eslint-disable-next-line
-    } catch (error: any) {
-      toast.error(error.response.data.message, {
-        position: "top-right",
-        autoClose: 3000, // Close after 3 seconds
-      });
-      setLoading(false);
-    }
-  };
 
   const checkSession = useCallback(() => {
     if (session) {
@@ -110,7 +86,6 @@ export const SignInPage: React.FC = () => {
   };
 
   const onSubmit: SubmitHandler<FormValues> = async (input) => {
-    const email = input.email;
     setLoading(true);
     try {
       const { data } = await axiosInstance.post(`/signin`, {
@@ -120,7 +95,10 @@ export const SignInPage: React.FC = () => {
       setLoading(false);
 
       if (signInType === SignInTypeEnum.MagicLink) {
-        handleMagicLinkSignIn(email, data.data.organization_id);
+        setOrganizationId(data.data.organization_id);
+        setEmail(input.email);
+
+        handleMagicLinkSignIn(input.email, data.data.organization_id);
       } else {
         handleSAMLSignIn(data.data.connection_id);
       }
@@ -152,14 +130,16 @@ export const SignInPage: React.FC = () => {
           magicLinkSent ? (
             <div className="mb-2">
               <p className="text-center block font-[700] text-lg font-medium text-gray-500">
-                A sign in link has been sent to your email!
+                {sendingLink
+                  ? ""
+                  : "A sign in link has been sent to your email!"}
               </p>
 
               <p
                 onClick={() => handleMagicLinkSignIn(email, organizationId)}
                 className="flex justify-center hover:underline cursor-pointer text-center block font-[700] text-md font-medium text-blue-500 mt-[5px]"
               >
-                {loading ? <Spinner /> : "Resend link"}
+                {sendingLink ? <Spinner /> : "Resend link"}
               </p>
             </div>
           ) : (
