@@ -16,26 +16,9 @@ import (
 	"gorm.io/gorm"
 
 	"saml_sso/internal/models"
+	"saml_sso/internal/structs"
 	"saml_sso/internal/utils"
 )
-
-type CreateTenantInput struct {
-	CompanyName string `json:"company_name"`
-	FirstName   string `json:"last_name"`
-	LastName    string `json:"first_name"`
-	Email       string `json:"email"`
-}
-
-type UpdateSamlConnectionInput struct {
-	SigningCertificate string `json:"signing_certificate"`
-	IdpSignOnUrl       string `json:"idp_sign_on_url"`
-	IdpIssuerUrl       string `json:"idp_issuer_url"`
-}
-
-type SignInInputInput struct {
-	Email        string `json:"email"`
-	SignInMethod string `json:"sign_in_method"`
-}
 
 // Authenticate handles member authentication
 func Authenticate(c *gin.Context, db *gorm.DB) {
@@ -120,7 +103,7 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 	)
 	fmt.Println(error)
 
-	var createTenantInput CreateTenantInput
+	var createTenantInput structs.CreateTenantInput
 
 	c.BindJSON(&createTenantInput)
 
@@ -295,7 +278,7 @@ func UpdateSamlConnection(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	var updateConnectionInput UpdateSamlConnectionInput
+	var updateConnectionInput structs.UpdateSamlConnectionInput
 	if err := c.BindJSON(&updateConnectionInput); err != nil {
 		utils.BadRequest(c, "Invalid input data")
 		return
@@ -337,7 +320,7 @@ func UpdateSamlConnection(c *gin.Context, db *gorm.DB) {
 // SignIn retrieves the Stytch organization ID by email
 func SignIn(c *gin.Context, db *gorm.DB) {
 
-	var signInInput SignInInputInput
+	var signInInput structs.SignInInput
 	if err := c.BindJSON(&signInInput); err != nil {
 		utils.BadRequest(c, "Invalid input data")
 		return
