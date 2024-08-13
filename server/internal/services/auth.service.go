@@ -374,7 +374,7 @@ func SignIn(c *gin.Context, db *gorm.DB) {
 		}
 
 		if memberExistError != nil && tenant.IdpIssuerUrl != "" {
-			utils.BadRequest(c, "This organization has SAML provisioned, please sign in with saml")
+			utils.BadRequest(c, "This organization has SAML provisioned, please sign in with SAML")
 		}
 
 		if memberExistError != nil && tenant.IdpIssuerUrl == "" {
