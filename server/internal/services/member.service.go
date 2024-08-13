@@ -27,7 +27,7 @@ func GetMemberProfile(c *gin.Context, db *gorm.DB) {
 	utils.OK(c, gin.H{"member": member})
 }
 
-// GetMemberProfile retrieves a member's profile using their email
+// GetMemberWithEmail retrieves a member's profile using their email
 func GetMemberWithEmail(c *gin.Context, db *gorm.DB, email *string) {
 
 	var member models.Member
