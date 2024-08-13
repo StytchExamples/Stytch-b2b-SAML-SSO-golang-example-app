@@ -2,3 +2,4 @@
 **/node_modules
 **/mydatabase.db
 **/build
+**.DS_Store
