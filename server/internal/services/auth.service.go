@@ -92,158 +92,186 @@ func Authenticate(c *gin.Context, db *gorm.DB) {
 	utils.Created(c, gin.H{"message": "Member authenticated successfully"})
 }
 
-func SignUp(c *gin.Context, db *gorm.DB) {
+func CreateStytchOrganization(c *gin.Context, companyName string, allowedDomains []string) (*organizations.CreateResponse, error) {
 
 	PROJECT_ID := os.Getenv("STYTCH_PROJECT_ID")
 	SECRET_KEY := os.Getenv("STYTCH_SECRET_KEY")
 
-	client, error := b2bstytchapi.NewClient(
+	client, _ := b2bstytchapi.NewClient(
 		PROJECT_ID,
 		SECRET_KEY,
 	)
-	fmt.Println(error)
+
+	createOrgParams := &organizations.CreateParams{
+		OrganizationName:     companyName,
+		OrganizationSlug:     companyName,
+		EmailJITProvisioning: "RESTRICTED",
+		EmailAllowedDomains:  allowedDomains,
+	}
+	stytchOrganization, createOrgError := client.Organizations.Create(context.Background(), createOrgParams)
+
+	return stytchOrganization, createOrgError
+}
+
+func CreateStytchConnection(c *gin.Context, organizationId string, companyName string) (*saml.CreateConnectionResponse, error) {
+
+	PROJECT_ID := os.Getenv("STYTCH_PROJECT_ID")
+	SECRET_KEY := os.Getenv("STYTCH_SECRET_KEY")
+
+	client, _ := b2bstytchapi.NewClient(
+		PROJECT_ID,
+		SECRET_KEY,
+	)
+	params := &saml.CreateConnectionParams{
+		OrganizationID: organizationId,
+		DisplayName:    companyName + "-SAML",
+	}
+
+	createdConnection, createConnError := client.SSO.SAML.CreateConnection(context.Background(), params)
+
+	return createdConnection, createConnError
+
+}
+
+func CreateStytchMember(c *gin.Context, organizationId string, email string) (*members.CreateResponse, error) {
+
+	PROJECT_ID := os.Getenv("STYTCH_PROJECT_ID")
+	SECRET_KEY := os.Getenv("STYTCH_SECRET_KEY")
+
+	client, _ := b2bstytchapi.NewClient(
+		PROJECT_ID,
+		SECRET_KEY,
+	)
+
+	createMemberParams := &members.CreateParams{
+		OrganizationID: organizationId,
+		EmailAddress:   email,
+	}
+
+	createMemberResponse, createMemberError := client.Organizations.Members.Create(context.Background(), createMemberParams)
+
+	return createMemberResponse, createMemberError
+}
+
+func SignUp(c *gin.Context, db *gorm.DB) {
+	PROJECT_ID := os.Getenv("STYTCH_PROJECT_ID")
+	SECRET_KEY := os.Getenv("STYTCH_SECRET_KEY")
+
+	client, _ := b2bstytchapi.NewClient(
+		PROJECT_ID,
+		SECRET_KEY,
+	)
+
+	if client == nil || client.Organizations == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to initialize Stytch client"})
+		return
+	}
 
 	var createTenantInput structs.CreateTenantInput
-
 	c.BindJSON(&createTenantInput)
 
 	CompanyName := createTenantInput.CompanyName
-
 	parts := strings.Split(createTenantInput.Email, "@")
-
 	allowedDomains := []string{parts[1]}
 
-	// Create a new tenant object
-	tenant := &models.Tenant{
-		CompanyName: strings.ReplaceAll(createTenantInput.CompanyName, " ", "_"),
-		Domain:      parts[1],
-	}
-
+	// Check if tenant already exists
+	var tenant models.Tenant
 	tenantExist := db.Where("company_name = ? OR domain = ?", CompanyName, parts[1]).First(&tenant)
 
-	fmt.Println(tenantExist)
+	// If tenant doesn't exist, create it and the Stytch organization
+	if tenantExist.RowsAffected <= 0 {
+		tenant = models.Tenant{
+			CompanyName: strings.ReplaceAll(createTenantInput.CompanyName, " ", "_"),
+			Domain:      parts[1],
+		}
 
-	if tenantExist.RowsAffected > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Organization already exists"})
-		return
+		if err := db.Create(&tenant).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		stytchOrg, err := CreateStytchOrganization(c, tenant.CompanyName, allowedDomains)
+		if err != nil {
+			db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
+			c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+			return
+		}
+
+		// Create Stytch connection
+		createdConnection, createConnError := CreateStytchConnection(c, stytchOrg.Organization.OrganizationID, tenant.CompanyName)
+		if createConnError != nil {
+			db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
+			deleteParams := &organizations.DeleteParams{
+				OrganizationID: stytchOrg.Organization.OrganizationID,
+			}
+			client.Organizations.Delete(context.Background(), deleteParams)
+			c.JSON(http.StatusInternalServerError, gin.H{"message": createConnError.Error()})
+			return
+		}
+
+		// Update tenant with Stytch organization details
+		tenantUpdates := map[string]interface{}{
+			"StytchOrganizationId": createdConnection.Connection.OrganizationID,
+			"StytchAcsUrl":         createdConnection.Connection.AcsURL,
+			"StytchAudienceUrl":    createdConnection.Connection.AudienceURI,
+			"ConnectionID":         createdConnection.Connection.ConnectionID,
+		}
+
+		if err := db.Model(&tenant).Updates(tenantUpdates).Error; err != nil {
+			db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
+			client.Organizations.Delete(context.Background(), &organizations.DeleteParams{
+				OrganizationID: stytchOrg.Organization.OrganizationID,
+			})
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update tenant with Stytch details"})
+			return
+		}
 	}
 
-	memberExist := db.Where("email = ?", createTenantInput.Email).First(&tenant)
+	// Check if member already exists
+	var member models.Member
+	memberExist := db.Where("email = ?", createTenantInput.Email).First(&member)
 
 	if memberExist.RowsAffected > 0 {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Member already exists"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Member already exists"})
 		return
 	}
 
-	createdTenant := db.Create(tenant)
-
-	fmt.Println(createdTenant)
-	if createdTenant.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": createdTenant.Error.Error()})
-		return
-	}
-
-	member := &models.Member{
+	// Create the member
+	member = models.Member{
 		FirstName: createTenantInput.FirstName,
 		LastName:  createTenantInput.LastName,
 		Email:     createTenantInput.Email,
 		TenantID:  tenant.ID,
 	}
 
-	createdMember := db.Create(member)
-
-	if createdMember.Error != nil {
-		db.Delete(&tenant)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": createdMember.Error.Error()})
+	if err := db.Create(&member).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	createOrgParams := &organizations.CreateParams{
-		OrganizationName:     tenant.CompanyName,
-		OrganizationSlug:     tenant.CompanyName,
-		EmailJITProvisioning: "RESTRICTED",
-		EmailAllowedDomains:  allowedDomains,
-	}
-
-	if client.Organizations == nil {
-		db.Unscoped().Where("email = ?", member.Email).Delete(&models.Member{})
-		db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Something went wrong"})
+	// Create Stytch member
+	createMemberResponse, err := CreateStytchMember(c, tenant.StytchOrganizationId, createTenantInput.Email)
+	if err != nil {
+		db.Unscoped().Where("email = ?", createTenantInput.Email).Delete(&models.Member{})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
-	stytchOrganization, createOrgError := client.Organizations.Create(context.Background(), createOrgParams)
-	if createOrgError != nil {
-		db.Unscoped().Where("email = ?", member.Email).Delete(&models.Member{})
-		db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
-		c.JSON(http.StatusBadRequest, gin.H{"message": createOrgError.Error()})
-		return
-	}
-
-	createMemberParams := &members.CreateParams{
-		OrganizationID: stytchOrganization.Organization.OrganizationID,
-		EmailAddress:   member.Email,
-	}
-
-	createMemberResponse, createMemberError := client.Organizations.Members.Create(context.Background(), createMemberParams)
-	if createMemberError != nil {
-		db.Unscoped().Where("email = ?", member.Email).Delete(&models.Member{})
-		db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
-		deleteParams := &organizations.DeleteParams{
-			OrganizationID: stytchOrganization.Organization.OrganizationID,
-		}
-		client.Organizations.Delete(context.Background(), deleteParams)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": createOrgError.Error()})
-		return
-	}
-
-	client.Organizations.Members.Create(context.Background(), createMemberParams)
-
-	params := &saml.CreateConnectionParams{
-		OrganizationID: stytchOrganization.Organization.OrganizationID,
-		DisplayName:    tenant.CompanyName + "-SAML",
-	}
-
-	createdConnection, createConnError := client.SSO.SAML.CreateConnection(context.Background(), params)
-
-	if createConnError != nil {
-
-		db.Unscoped().Where("email = ?", member.Email).Delete(&models.Member{})
-		db.Unscoped().Where("ID = ?", tenant.ID).Delete(&models.Tenant{})
-		deleteParams := &organizations.DeleteParams{
-			OrganizationID: stytchOrganization.Organization.OrganizationID,
-		}
-		client.Organizations.Delete(context.Background(), deleteParams)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": createConnError.Error()})
-
-		return
-	}
-
-	tenantUpdates := map[string]interface{}{
-		"StytchOrganizationId": createdConnection.Connection.OrganizationID,
-		"StytchAcsUrl":         createdConnection.Connection.AcsURL,
-		"StytchAudienceUrl":    createdConnection.Connection.AudienceURI,
-		"ConnectionID":         createdConnection.Connection.ConnectionID,
-	}
-
+	// Update member with Stytch member ID
 	memberUpdates := map[string]interface{}{
 		"StytchMemberID": createMemberResponse.Member.MemberID,
 	}
 
-	if err := db.Model(&tenant).Updates(tenantUpdates).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong updating the organization"})
-		return
-	}
-
 	if err := db.Model(&member).Updates(memberUpdates).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong updating member details"})
+		db.Unscoped().Where("email = ?", createTenantInput.Email).Delete(&models.Member{})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update member details"})
 		return
-
 	}
 
+	// Send magic link
 	sendMagicLinkparams := &email.LoginOrSignupParams{
-		EmailAddress:     member.Email,
-		OrganizationID:   stytchOrganization.Organization.OrganizationID,
+		EmailAddress:     createTenantInput.Email,
+		OrganizationID:   tenant.StytchOrganizationId,
 		LoginRedirectURL: "http://localhost:3000/authenticate",
 	}
 
@@ -251,9 +279,8 @@ func SignUp(c *gin.Context, db *gorm.DB) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"status": "success",
-		"data":   gin.H{"message": "Sign up successful"},
+		"data":   gin.H{"message": "Sign up successful", "organization_id": tenant.StytchOrganizationId},
 	})
-
 }
 
 func UpdateSamlConnection(c *gin.Context, db *gorm.DB) {
