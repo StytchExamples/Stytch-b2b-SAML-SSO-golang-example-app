@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect } from "react";
-
 import { useStytchMember, useStytchMemberSession } from "@stytch/react/b2b";
 import { Sidebar, Profile, Settings } from "../components";
 import { useDispatch, useSelector } from "react-redux";

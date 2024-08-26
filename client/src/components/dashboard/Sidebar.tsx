@@ -1,5 +1,3 @@
-// src/components/Sidebar.js
-
 import React, { useState } from "react";
 import { FaCog, FaUser, FaBars } from "react-icons/fa";
 

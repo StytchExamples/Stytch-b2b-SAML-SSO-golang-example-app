@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
+
 const axiosConfig: AxiosRequestConfig = {
   baseURL: "http://localhost:3002/api/v1",
   timeout: 10000,
