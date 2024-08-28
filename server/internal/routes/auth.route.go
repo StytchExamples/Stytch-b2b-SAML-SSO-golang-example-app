@@ -19,6 +19,10 @@ func AuthRoutes(r *gin.RouterGroup, db *gorm.DB) {
 		services.SignIn(c, db)
 	})
 
+	r.POST("/createSAMLConnection/:stytch_organization_id", func(c *gin.Context) {
+		services.CreateSamlConnection(c, db)
+	})
+
 	r.PUT("/tenants/update/saml-connection/:id", func(c *gin.Context) {
 		services.UpdateSamlConnection(c, db)
 	})

@@ -13,4 +13,5 @@ type Tenant struct {
 	Domain               string   `json:"domain"`
 	CompanyName          string   `json:"company_name"`
 	Members              []Member `gorm:"foreignKey:TenantID" json:"members"`
+	SamlConfigured       bool     `json:"saml_configured"`
 }
