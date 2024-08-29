@@ -10,5 +10,6 @@ export interface TenantInterface {
   stytch_audience_url: string;
   stytch_acs_url: string;
   stytch_issuer_url: string;
+  samlConfigured?: boolean;
   company_name: string;
 }

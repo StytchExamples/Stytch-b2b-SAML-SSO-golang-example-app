@@ -1,11 +1,12 @@
 import React from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { RootState } from "../../store/reducers";
 import { axiosInstance } from "../../utils";
 import Spinner from "../common/Spinner";
+import { IoSettings } from "react-icons/io5";
 
 interface SAMLFormInputs {
   idp_issuer_url: string;
@@ -15,8 +16,9 @@ interface SAMLFormInputs {
 
 export const Settings = () => {
   const [loading, setLoading] = useState(false);
+  const [creatingConnection, setCreatingConnection] = useState(false);
 
-  const [showSAMLForm, setShowSAMLForm] = useState(false);
+  const dispatch = useDispatch();
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -26,7 +28,30 @@ export const Settings = () => {
     });
   };
 
-  const tenant = useSelector((state: RootState) => state.tenantReducer.tenant);
+  const tenant = useSelector(
+    (state: RootState) => state.tenantReducer.tenant
+  );
+
+  const createSamlConnection = async () => {
+    setCreatingConnection(true);
+    try {
+      const { data } = await axiosInstance.post(
+        `/createSAMLConnection/${tenant.stytch_organization_id}`
+      );
+      dispatch({
+        type: "SET_TENANT",
+        payload: { ...tenant, ...data.data.connection },
+      });
+      setCreatingConnection(false);
+    } catch (error: any) {
+      setCreatingConnection(false);
+      toast.error(error?.response?.data?.message || "Something went wrong", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    }
+  };
+
   const {
     register,
     handleSubmit,
@@ -47,7 +72,6 @@ export const Settings = () => {
         data
       );
       setLoading(false);
-      setShowSAMLForm(false);
       reset();
       toast.success("SAML Configuration updated successfully!", {
         position: "top-right",
@@ -59,7 +83,7 @@ export const Settings = () => {
 
       toast.error(
         error.message ||
-          "SAML Configuration Failed, please try again with the correct credentials",
+          "SAML configuration failed, please try again with the correct credentials",
         {
           position: "top-right",
           autoClose: 3000, // Close after 3 seconds
@@ -70,24 +94,39 @@ export const Settings = () => {
 
   return (
     <div className="flex  flex-col w-full ">
-      <h1 className="text-3xl font-bold mb-6">
-        {showSAMLForm ? "SAML Configuration" : "Settings"}{" "}
-      </h1>
-      <div className="bg-white p-6 shadow-md rounded-lg">
-        {!showSAMLForm && (
-          <button
-            onClick={() => setShowSAMLForm(!showSAMLForm)}
-            className="flex font-bold justify-center w-full bg-[#13e5c0] text-white py-2 px-4 rounded-md shadow-sm hover:bg-[#19303d] focus:outline-none focus:ring-2  focus:ring-offset-2"
-          >
-            Configure Saml
-          </button>
+      <h1 className="text-3xl font-bold mb-6">Settings</h1>
+      <div className="bg-white p-6 shadow-md rounded-lg h-full">
+        {!tenant.connection_id && (
+          <div className="h-full flex-col items-center  flex font-bold justify-center w-full text-white py-2 rounded-md ">
+            <IoSettings color="#13e5c0" size={200} />
+
+            <p className="flex text-[25px] text-[#19303d] gap-8 mt-5">
+              Enable SAML Configuration 
+            </p>
+
+            <p className="flex font-normal text-[#19303d] gap-8 text-center">
+              Enable SAML SSO for your organization using an identity provider like Okta, Entra ID, or Google.
+            </p>
+
+            <button
+              onClick={createSamlConnection}
+              type="submit"
+              className="flex mb-5 mt-5 font-bold justify-center w-md text-white py-2 px-4 rounded-md shadow-sm bg-[#19303d] focus:outline-none "
+            >
+              {creatingConnection ? (
+                <Spinner className={"text-[#fff]"} />
+              ) : (
+                "Configure SAML Connection"
+              )}
+            </button>
+          </div>
         )}
 
-        {showSAMLForm && (
+        {tenant.connection_id && (
           <div className="mt-2">
             <div className="mt-1 mb-[100px]">
               <h2 className="text-xl font-semibold mb-4">
-                Use the credentials below to setup SAML on your IdP
+                Use the credentials below to set up SAML on your IdP
               </h2>
 
               <div className="mb-4">
@@ -113,7 +152,9 @@ export const Settings = () => {
                 </label>
                 <div
                   className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm cursor-pointer"
-                  onClick={() => copyToClipboard(tenant.stytch_audience_url)}
+                  onClick={() =>
+                    copyToClipboard(tenant.stytch_audience_url)
+                  }
                   title="Click to copy"
                 >
                   {tenant.stytch_audience_url}
@@ -206,14 +247,7 @@ export const Settings = () => {
                 type="submit"
                 className="flex mb-5 font-bold justify-center w-full text-white py-2 px-4 rounded-md shadow-sm bg-[#19303d] focus:outline-none focus:ring-2  focus:ring-offset-2"
               >
-                {loading ? <Spinner /> : "Update SAML configuration"}
-              </button>
-
-              <button
-                onClick={() => setShowSAMLForm(!showSAMLForm)}
-                className="flex font-bold justify-center w-full bg-[#13e5c0] text-white py-2 px-4 rounded-md shadow-sm hover:bg-[#19303d] focus:outline-none focus:ring-2  focus:ring-offset-2"
-              >
-                {showSAMLForm ? "Cancel" : "Configure Saml"}
+                {loading ? <Spinner /> : "Update SAML Configuration"}
               </button>
             </form>
           </div>
