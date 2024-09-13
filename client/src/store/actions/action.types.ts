@@ -1,4 +1,0 @@
-export const SET_MEMBER = "SET_MEMBER";
-export const SET_TENANT = "SET_TENANT";
-export const SET_DASHBOARD_INTERFACE = "SET_DASHBOARD_INTERFACE";
-export const UPDATE_TENANT = "UPDATE_TENANT";

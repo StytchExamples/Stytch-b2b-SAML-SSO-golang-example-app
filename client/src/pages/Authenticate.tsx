@@ -1,72 +1,132 @@
-import React, { useCallback, useEffect } from "react";
-import { useStytchB2BClient, useStytchMemberSession } from "@stytch/react/b2b";
-import Spinner from "../components/common/Spinner";
+import React, { useEffect, useState } from "react";
+import {
+  AuthFlowType,
+  B2BProducts,
+  StytchB2BUIConfig,
+  StytchEventType,
+} from "@stytch/vanilla-js/dist/b2b";
+import { StytchB2B } from "@stytch/react/b2b";
 import { axiosInstance } from "../utils";
-import { toast } from "react-toastify";
+import { useLocation } from "react-router-dom";
+import { LuLoader2 } from "react-icons/lu";
+import Cookies from "js-cookie";
 
 export const Authenticate = () => {
-  const stytch = useStytchB2BClient();
-  const { session } = useStytchMemberSession();
+  const config: StytchB2BUIConfig = {
+    products: [B2BProducts.emailMagicLinks],
+    sessionOptions: { sessionDurationMinutes: 60 },
+    authFlowType: AuthFlowType.Discovery,
+  };
 
-  const authenticateUser = useCallback(() => {
-    if (session) {
+  const [tokenType, setTokenType] = useState("");
+
+  const location = useLocation();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const token = searchParams.get("token");
+    const tokenType: any = searchParams.get("stytch_token_type");
+
+    setTokenType(tokenType);
+
+    if (tokenType === "sso") {
       axiosInstance
-        .get(
-          `/authenticate?stytch_organization_id=${session.organization_id}&stytch_member_id=${session.member_id}`
-        )
-        .then(() => {
+        .get(`/authenticate?token=${token}`)
+        .then((data) => {
+          Cookies.set("stytch_session_jwt", data.data.data.SessionJWT, {
+            secure: true,
+            sameSite: "Strict",
+          });
+          Cookies.set("stytch_session", data.data.data.SessionToken, {
+            secure: true,
+            sameSite: "Strict",
+          });
+
           window.location.href = "http://localhost:3000/dashboard";
         })
         .catch((error) => {
-          toast.error(error.message || "Something went wrong", {
-            position: "bottom-right",
-          });
+          // eslint-disable-next-line
+          console.log({ error });
         });
     }
-  }, [session]);
+  }, [location.search]);
 
-  useEffect(() => {
-    if (session) {
-      authenticateUser();
-    } else {
-      const token = new URLSearchParams(window.location.search).get("token");
-
-      try {
-        if (token) {
-          const tokenType = new URLSearchParams(window.location.search).get(
-            "stytch_token_type"
-          );
-          if (tokenType === "multi_tenant_magic_links") {
-            stytch.magicLinks.authenticate({
-              magic_links_token: token,
-              session_duration_minutes: 60,
-            });
-          }
-
-          if (tokenType === "sso") {
-            stytch.sso.authenticate({
-              sso_token: token,
-              session_duration_minutes: 240,
-            });
-          }
-        }
-        //eslint-disable-next-line
-      } catch (error: any) {
-        toast.error(
-          error.message ||
-            "An error occurred while trying to authenticate your account",
-          {
-            position: "top-right",
-            autoClose: 3000, // Close after 3 seconds
-          }
-        );
-      }
-    }
-  }, [session]);
+  const styles = {
+    container: {
+      backgroundColor: "#FFFFFF",
+      borderColor: "#ADBCC5",
+      borderRadius: "8px",
+      width: "400px",
+    },
+    colors: {
+      primary: "#19303D",
+      secondary: "#5C727D",
+      success: "#0C5A56",
+      error: "#8B1214",
+    },
+    buttons: {
+      primary: {
+        backgroundColor: "#19303D",
+        textColor: "#FFFFFF",
+        borderColor: "#19303D",
+        borderRadius: "4px",
+      },
+      secondary: {
+        backgroundColor: "#FFFFFF",
+        textColor: "#19303D",
+        borderColor: "#19303D",
+        borderRadius: "4px",
+      },
+    },
+    inputs: {
+      backgroundColor: "#FFFFFF00",
+      borderColor: "#19303D",
+      borderRadius: "4px",
+      placeholderColor: "#8296A1",
+      textColor: "#19303D",
+    },
+    fontFamily: "Arial",
+    hideHeaderText: false,
+    logo: {
+      logoImageUrl: "",
+    },
+  };
 
   return (
     <div className="flex justify-center w-full items-center">
-      <Spinner size="100" />
+      {tokenType === "discovery" && (
+        <StytchB2B
+          styles={styles}
+          config={config}
+          callbacks={{
+            onEvent: async ({
+              type,
+              data,
+            }: {
+              type: StytchEventType;
+              data: any;
+            }) => {
+              if (
+                type ===
+                  StytchEventType.B2BDiscoveryIntermediateSessionExchange ||
+                type === StytchEventType.B2BDiscoveryOrganizationsCreate ||
+                type === StytchEventType.B2BMagicLinkDiscoveryAuthenticate ||
+                type === StytchEventType.B2BSSOAuthenticate
+              ) {
+                if (data && data.member) {
+                  window.location.href = "http://localhost:3000/dashboard";
+                }
+              }
+            },
+          }}
+        />
+      )}
+
+      {tokenType === "sso" && (
+        <>
+          <LuLoader2 size={50} />
+        </>
+      )}
     </div>
   );
 };
