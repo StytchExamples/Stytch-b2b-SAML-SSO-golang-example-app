@@ -7,7 +7,6 @@ export const Profile = () => {
 
   return (
     <div className="flex flex-col w-full">
-      <h1 className="text-3xl font-bold mb-6">Profile</h1>
       <div className="flex flex-col w-full gap-5 bg-white p-6 shadow-md rounded-lg">
         
         <div className="flex mt-5 flex-col w-fill gap-5 bg-white p-6 shadow-md rounded-lg">
@@ -48,7 +47,7 @@ export const Profile = () => {
                 <strong>SAML Configured?</strong>
               </p>
               <p className="flex gap-8">
-                {organization && organization?.sso_active_connections
+                {organization && organization?.sso_active_connections?.length > 0
                   ? "True"
                   : "False"}
               </p>

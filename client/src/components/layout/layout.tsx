@@ -26,7 +26,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div style={{ maxWidth: "100%" }} className=" flex flex-col min-h-screen">
       <header className="border-b-[1px] bg-[#19303d] text-white p-4 shadow-md ">
-        <div className="px-10 mx-auto flex justify-between items-center">
+        <div className="px-2 mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <img
               className="w-10 h-10"

@@ -22,8 +22,6 @@ func BadRequest(c *gin.Context, message string) {
 	})
 }
 
-// NotFound sends a 404 Not Found response
-
 // InternalServerError sends a 500 Internal Server Error response
 func InternalServerError(c *gin.Context, message string) {
 	c.JSON(http.StatusInternalServerError, gin.H{

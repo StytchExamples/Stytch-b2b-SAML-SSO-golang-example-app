@@ -1,8 +1,6 @@
 import React from "react";
 
 import "./App.css";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css"; // Import CSS styles
 import { Layout } from "./components";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { StytchB2BProvider } from "@stytch/react/b2b";
@@ -18,7 +16,6 @@ function App() {
     <StytchB2BProvider stytch={stytch}>
       <Router>
         <Layout>
-          <ToastContainer />
           <Routes>
             <Route path="/" element={<SignInPage />} />
             <Route path="/:slug" element={<SAMLSignInPage />} />
