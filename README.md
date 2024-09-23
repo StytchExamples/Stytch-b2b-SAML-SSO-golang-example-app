@@ -1,4 +1,4 @@
-# SAML SSO in a Golang + React B2B SaaS example app, using Stytch
+# How to implement SAML SSO in a Golang + React B2B SaaS example app, using Okta as IdP
 ## Overview
 This application demonstrates how B2B SaaS applications can implement SAML SSO in weeks, days, or even hours, using Stytch.
 
