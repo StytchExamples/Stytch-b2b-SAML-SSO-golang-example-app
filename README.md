@@ -56,7 +56,7 @@ go run main.go
 ```
 Once the example app is running locally on your machine, the React client will be available at http://localhost:3000/, and the Golang server will run on port 3002, ready to receive and respond to HTTP requests.
 ## Need help?
-### Join our community Slack 💬 
+### Join our Slack community 💬 
 Participate in discussions, ask questions, and suggest new features in our [Slack community](https://stytch.slack.com/join/shared_invite/zt-nil4wo92-jApJ9Cl32cJbEd9esKkvyg#/shared-invite/email)!
 
 ### Talk to a Solutions Engineer❓ 
