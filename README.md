@@ -4,7 +4,7 @@ This application demonstrates how B2B SaaS applications can implement SAML SSO i
 
 ![React + Golang SaaS application diagram](https://github.com/StytchExamples/Stytch-b2b-SAML-SSO-golang-example-app/blob/main/client/public/App_Architecture.png)
 
-This React + Golang SaaS application leverages Stytch to support both magic link authentication and SAML SSO for hypothetical organizations:
+This React + Golang SaaS application leverages Stytch to support both magic link authentication and SAML SSO for hypothetical customers (organizations):
 - For tenants or organizations that haven’t configured SAML on the app, we use Stytch’s React SDK to enable magic link authentication.
 * For tenants or organizations that intend to or have configured SAML both on our app and their IdP (Okta, in this case), we use Stytch’s Admin Portal SSO and Golang SDK to enable the entire SAML SSO experience.
 
