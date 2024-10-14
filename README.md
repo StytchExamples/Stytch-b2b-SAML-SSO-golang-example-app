@@ -1,88 +1,65 @@
-# How to implement passwordless authentication in Node.js using Passport.js and email magic links
+# How to implement SAML SSO in a Golang + React B2B SaaS example app, using Okta as IdP
 ## Overview
-This example app is a B2B file management SaaS that allows users to create accounts and sign in without passwords.
+This application demonstrates how B2B SaaS applications can implement SAML SSO in weeks, days, or even hours, using Stytch.
 
+![React + Golang SaaS application diagram](https://github.com/StytchExamples/Stytch-b2b-SAML-SSO-golang-example-app/blob/main/client/public/App_Architecture.png)
 
-These users only need to provide their email address to receive a time-sensitive magic link, which grants them access to their accounts. After clicking the link sent to their email, our app will communicate with Stytch to validate the embedded magic link token, ensuring the user is legitimate before granting access.
+This React + Golang SaaS application leverages Stytch to support both magic link authentication and SAML SSO for hypothetical customers (organizations):
+- For tenants or organizations that haven’t configured SAML on the app, we use Stytch’s React SDK to enable magic link authentication.
+* For tenants or organizations that intend to or have configured SAML both on our app and their IdP (Okta, in this case), we use Stytch’s Admin Portal SSO and Golang SDK to enable the entire SAML SSO experience.
 
-
-![Authentication flow diagram](https://github.com/StytchExamples/stytch-b2b-file-management-app/blob/main/client/public/App_Architecture.png)
-
-
-On the client, we use Stytch’s B2B React SDK to implement our entire email magic link authentication flow. Then, we use Passport.js and Stytch’s Node.js SDK to handle token authentication and protect our server-side routes.
-
-
-The key features of our example app include:
-- A SignUp and SignIn flow, powered by Stytch’s prebuilt UI components.
-- A CompleteRegistration page for collecting additional user information.
-- Protected routes that only be accessed by authenticated.
-- A custom Passport.js strategy for server-side session management.
-
-
+Specifically, we use Stytch’s React SDK to manage frontend interactions, including signing up and in via magic links, session management using session tokens/JWTs, and rendering the Admin Portal UI. On the backend, we use Stytch’s Golang SDK to manage SAML resources, specifically retrieving and authenticating SAML tokens.
 ## Prerequisites
-To run the example app on your machine, make sure you have the following set up:
-- [Node.js v20.10.0](http://Node.js) or later.
-- A Stytch developer account. Feel free to [sign up for a free dev account](https://stytch.com/dashboard/start-now) if you don’t have one already, but you must set up a B2B SaaS project within this account.
-
-
+If you want to run the example app on your machine, make sure you have the following:
+- [Golang 1.22.5](https://go.dev/doc/install) or higher installed on your machine.
+- [Node.js](http://Node.js) v20.10.0 or higher installed on your machine.
+- A Stytch developer account. You can [sign up for a free account here](https://stytch.com/dashboard/start-now). However, you have to set up a Stytch B2B SaaS authentication project to access SAML.
+- An Okta workforce identity cloud account. You can register for a [free thirty-day trial](https://www.okta.com/free-trial/).
 ## Getting started
 ### Clone the repository
-To clone the repo for our example app, run the following command in your terminal:
+To set up the example app on your machine, open a terminal or shell instance and run the following command to clone the GitHub repository:
 ```
-git clone https://github.com/StytchExamples/stytch-b2b-file-management-app.git
+git clone https://github.com/StytchExamples/Stytch-b2b-SAML-SSO-golang-example-app/
 ```
 ### Install the necessary dependencies
-Run the following commands in the root of the client and server directory to install the necessary dependencies for our app:
+Next, go to the root of the Client and Server directories and run the following commands to install the necessary dependencies for each directory:
 ```
-// In the client directory
+// Navigate to the client directory and install all dependencies
 cd client
 npm install
 
-
-// In the server directory
+// Navigate to the server directory and install all dependencies
 cd server
-npm install
+go get
 ```
 ### Setting up Stytch
 [Sign up for a Stytch developer account](https://stytch.com/dashboard/start-now) and create a B2B Authentication Project. You have to follow the steps defined in the companion article to set up your Stytch dashboard correctly. You can find it here!
 ### Set environment variables
-Go to the root of the client and server directories, create a .env file and populate the specified fields with the B2B Project’s credentials issued to you by Stytch.
-
+In the root of the client and server directories, create a .env file and populate the fields with the B2B Project’s credentials issued to you by Stytch.
 
 You have to follow the key/value format that’s specified below:
 ```
-//.env in client root (Path: "stytch-b2b-file-management-app/client/.env"
-VITE_STYTCH_PROJECT_ID = "Provide the project ID for your Stytch B2B project"
-VITE_STYTCH_PUBLIC_TOKEN = "Provide the public token value from your Stytch B2B project"
-STYTCH_SECRET = "Provide the secret value from your Stytch B2B project"
-VITE_PUBLIC_API_URL = "http://localhost:4000"
+//.env in client root (Path: "Stytch-b2b-SAML-SSO-golang-example-app/client/.env"
+REACT_APP_STYTCH_PUBLIC_TOKEN = "Provide your Stytch B2B project Public token"
 
-
-
-
-//.env in server root: (Path: "stytch-b2b-file-management-app/server/.env"
-STYTCH_PROJECT_ID = "Provide the project ID for your Stytch B2B project"
-STYTCH_SECRET = "Provide the secret value from your Stytch B2B project"
-PORT = 4000 
-APP_URL = "http://localhost:3000"
+//.env in server root: "Stytch-b2b-SAML-SSO-golang-example-app/server/.env"
+STYTCH_PROJECT_ID = "Provide Your Stytch Project ID"
+STYTCH_SECRET_KEY = "Provide Your Stytch Project Secret"
+PORT = ":3002"
 ```
 ### Running the example app locally
-To run the example app locally, run the following commands in the root of the client and server directories:
+After successfully setting up Stytch and installing the necessary dependencies, you can run the example app on your machine using the following commands:
 ```
-// Run the client (Path: "stytch-b2b-file-management-app/client")
-npm run dev
-
-
-// Run the server (Path: "stytch-b2b-file-management-app/server")
+// Run the client (Path: "Stytch-b2b-SAML-SSO-golang-example-app/client")
 npm run start
+
+// Run the server (Path: "Stytch-b2b-SAML-SSO-golang-example-app/server")
+go run main.go
 ```
-At this point, your React client should be running at http://localhost:3000, and your Express backend should be available at http://localhost:4000.
-
-
+Once the example app is running locally on your machine, the React client will be available at http://localhost:3000/, and the Golang server will run on port 3002, ready to receive and respond to HTTP requests.
 ## Need help?
-### Join our Slack community 💬
+### Join our Slack community 💬 
 Participate in discussions, ask questions, and suggest new features in our [Slack community](https://stytch.slack.com/join/shared_invite/zt-nil4wo92-jApJ9Cl32cJbEd9esKkvyg#/shared-invite/email)!
 
-
-### Talk to a Solutions Engineer❓
-You can [schedule a chat](https://stytch.com/contact) with a member of our Solutions Engineering team, check our [Stytch Forum](https://forum.stytch.com/), or email us at support@stytch.com.
+### Talk to a Solutions Engineer❓ 
+You can [schedule a chat](https://stytch.com/contact) with a member of our Solutions Engineering team, check our [Stytch Forum](https://forum.stytch.com/) or email us at support@stytch.com.
